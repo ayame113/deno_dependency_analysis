@@ -52,7 +52,8 @@ class Cache {
       return;
     }
     if (buildIdInKv) {
-      const prefix = [KV_PREFIX, "buildOutput", buildIdInKv];
+      // clean cache
+      const prefix = [KV_PREFIX];
       for await (const entry of kv.list<ArrayBuffer>({ prefix })) {
         kv.delete(entry.key); // don't await
       }
