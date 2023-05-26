@@ -17,7 +17,7 @@ export const handler: MiddlewareHandler[] = [
     }
 
     const { chunkName } = match.pathname.groups;
-    const cacheData = await getCache(chunkName);
+    const cacheData = await cache.get(chunkName);
 
     // If there is a cache, return it
     if (cacheData) {
@@ -32,7 +32,7 @@ export const handler: MiddlewareHandler[] = [
     // get raw asset content
     const data = await res.arrayBuffer();
     // cache data
-    setCache(chunkName, data, Object.fromEntries(res.headers.entries()));
+    cache.set(chunkName, data, Object.fromEntries(res.headers.entries()));
 
     return new Response(data, {
       headers: res.headers,
@@ -51,119 +51,126 @@ export const handler: MiddlewareHandler[] = [
 
 const maxArrayBufferLength = 60000; // less than 65536
 const KV_PREFIX = "__fresh_cache__";
-const inMemoryCache: Record<
-  string,
-  { headers: Record<string, string>; body: ArrayBuffer } | undefined
-> = {};
-// avoid tla
-const kvInitPromise = initKv();
+class CacheData {
+  #inMemoryCache: Record<
+    string,
+    { headers: Record<string, string>; body: ArrayBuffer } | undefined
+  > = {};
+  // avoid tla
+  #kvInitPromise = this.#initKv();
 
-async function setCache(
-  chunkName: string,
-  content: ArrayBuffer,
-  headers: Record<string, string>,
-) {
-  // set to in-memory cache
-  inMemoryCache[chunkName] = { body: content, headers };
+  /** initialize KV */
+  async #initKv() {
+    console.time("init kv");
 
-  const kv = await kvInitPromise;
-  const buffers = splitArrayBuffer(content, maxArrayBufferLength);
-
-  console.log("set build cache:", BUILD_ID, chunkName, buffers);
-
-  // add headers data and contents to KV
-  while (true) {
-    let atomic = kv.atomic()
-      .set([KV_PREFIX, "headers", BUILD_ID, chunkName], headers);
-    for (const [i, buffer] of buffers.entries()) {
-      atomic = atomic.set(
-        [KV_PREFIX, "buildOutput", BUILD_ID, chunkName, i],
-        buffer,
-      );
+    const kv = await Deno.openKv(DEBUG ? "./cache.sqlite" : undefined);
+    const buildIdInKv = (await kv.get<string>([KV_PREFIX, "buildId"])).value;
+    if (buildIdInKv === BUILD_ID) {
+      await this.#loadAllCache(kv);
+      console.timeEnd("init kv");
+      return kv;
     }
-    const res = await atomic.commit();
-    if (res.ok) {
-      break;
+    if (buildIdInKv) {
+      // clean cache
+      const prefix = [KV_PREFIX];
+      // TODO: delete in parallel
+      const kvDeletePromise = [];
+      for await (const entry of kv.list<ArrayBuffer>({ prefix })) {
+        kvDeletePromise.push(kv.delete(entry.key));
+      }
+      await Promise.all(kvDeletePromise);
     }
-  }
-}
-
-async function getCache(chunkName: string) {
-  // get from in-memory cache
-  if (inMemoryCache[chunkName]) {
-    return inMemoryCache[chunkName];
-  }
-
-  await kvInitPromise;
-
-  console.log("request build cache:", BUILD_ID, chunkName);
-
-  return inMemoryCache[chunkName];
-}
-
-/** initialize KV */
-async function initKv() {
-  console.time("init kv");
-
-  const kv = await Deno.openKv(DEBUG ? "./cache.sqlite" : undefined);
-  const buildIdInKv = (await kv.get<string>([KV_PREFIX, "buildId"])).value;
-  if (buildIdInKv === BUILD_ID) {
-    await loadAllCache(kv);
+    await kv.set([KV_PREFIX, "buildId"], BUILD_ID);
     console.timeEnd("init kv");
     return kv;
   }
-  if (buildIdInKv) {
-    // clean cache
-    const prefix = [KV_PREFIX];
-    // TODO: delete in parallel
-    const kvDeletePromise = [];
-    for await (const entry of kv.list<ArrayBuffer>({ prefix })) {
-      kvDeletePromise.push(kv.delete(entry.key));
+
+  async #loadAllCache(kv: Deno.Kv) {
+    // get all cache data from KV
+
+    // get contents data from KV
+    const cacheData: Record<string, ArrayBuffer[]> = {};
+    const cacheList = kv.list<ArrayBuffer>({
+      prefix: [KV_PREFIX, "buildOutput", BUILD_ID],
+    });
+    for await (const entry of cacheList) {
+      const [_, __, ___, chunkName] = entry.key;
+      (cacheData[chunkName as string] ??= []).push(entry.value);
     }
-    await Promise.all(kvDeletePromise);
+
+    // get headers data from KV
+    const headersData: Record<string, Record<string, string>> = {};
+    const headersList = kv.list<Record<string, string>>({
+      prefix: [KV_PREFIX, "headers", BUILD_ID],
+    });
+    for await (const entry of headersList) {
+      const [_, __, ___, chunkName] = entry.key;
+      headersData[chunkName as string] = entry.value;
+    }
+
+    // set to in-memory cache
+    for (const [chunkName, buffers] of Object.entries(cacheData)) {
+      this.#inMemoryCache[chunkName] = {
+        body: await concatArrayBuffers(buffers),
+        headers: headersData[chunkName],
+      };
+    }
   }
-  await kv.set([KV_PREFIX, "buildId"], BUILD_ID);
-  console.timeEnd("init kv");
-  return kv;
+
+  async get(chunkName: string) {
+    await this.#kvInitPromise;
+
+    // get from in-memory cache
+    if (this.#inMemoryCache[chunkName]) {
+      return this.#inMemoryCache[chunkName];
+    }
+
+    console.log("request build cache:", BUILD_ID, chunkName);
+
+    return this.#inMemoryCache[chunkName];
+  }
+
+  async set(
+    chunkName: string,
+    content: ArrayBuffer,
+    headers: Record<string, string>,
+  ) {
+    // set to in-memory cache
+    this.#inMemoryCache[chunkName] = { body: content, headers };
+
+    const kv = await this.#kvInitPromise;
+    const buffers = splitArrayBuffer(content, maxArrayBufferLength);
+
+    console.log("set build cache:", BUILD_ID, chunkName, buffers);
+
+    // add headers data and contents to KV
+    while (true) {
+      let atomic = kv.atomic()
+        .set([KV_PREFIX, "headers", BUILD_ID, chunkName], headers);
+      if (buffers.length === 0) {
+        atomic = atomic.set(
+          [KV_PREFIX, "buildOutput", BUILD_ID, chunkName, 0],
+          new ArrayBuffer(0),
+        );
+      } else {
+        for (const [i, buffer] of buffers.entries()) {
+          atomic = atomic.set(
+            [KV_PREFIX, "buildOutput", BUILD_ID, chunkName, i],
+            buffer,
+          );
+        }
+      }
+      const res = await atomic.commit();
+      if (res.ok) {
+        break;
+      }
+    }
+  }
 }
-
-async function loadAllCache(kv: Deno.Kv) {
-  // get all cache data from KV
-
-  // get contents data from KV
-  const cacheData: Record<string, ArrayBuffer[]> = {};
-  const cacheList = kv.list<ArrayBuffer>({
-    prefix: [KV_PREFIX, "buildOutput", BUILD_ID],
-  });
-  for await (const entry of cacheList) {
-    const [_, __, ___, chunkName] = entry.key;
-    (cacheData[chunkName as string] ??= []).push(entry.value);
-  }
-
-  // get headers data from KV
-  const headersData: Record<string, Record<string, string>> = {};
-  const headersList = kv.list<Record<string, string>>({
-    prefix: [KV_PREFIX, "headers", BUILD_ID],
-  });
-  for await (const entry of headersList) {
-    const [_, __, ___, chunkName] = entry.key;
-    headersData[chunkName as string] = entry.value;
-  }
-
-  // set to in-memory cache
-  for (const [chunkName, buffers] of Object.entries(cacheData)) {
-    inMemoryCache[chunkName] = {
-      body: await concatArrayBuffers(buffers),
-      headers: headersData[chunkName],
-    };
-  }
-}
+const cache = new CacheData();
 
 /** split the {buffer} so that the length fits within {maxArrayBufferLength} */
 function splitArrayBuffer(buffer: ArrayBuffer, maxArrayBufferLength: number) {
-  if (buffer.byteLength === 0) {
-    return [buffer];
-  }
   const buffers = [];
   for (let i = 0; i < buffer.byteLength; i += maxArrayBufferLength) {
     buffers.push(buffer.slice(i, i + maxArrayBufferLength));
