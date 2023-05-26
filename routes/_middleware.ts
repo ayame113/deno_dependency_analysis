@@ -56,7 +56,7 @@ const inMemoryCache: Record<
   { headers: Record<string, string>; body: ArrayBuffer } | undefined
 > = {};
 // avoid tla
-const kvPromise = initKv();
+const kvInitPromise = initKv();
 
 async function setCache(
   chunkName: string,
@@ -66,7 +66,7 @@ async function setCache(
   // set to in-memory cache
   inMemoryCache[chunkName] = { body: content, headers };
 
-  const kv = await kvPromise;
+  const kv = await kvInitPromise;
   const buffers = splitArrayBuffer(content, maxArrayBufferLength);
 
   console.log("set build cache:", BUILD_ID, chunkName, buffers);
@@ -94,9 +94,40 @@ async function getCache(chunkName: string) {
     return inMemoryCache[chunkName];
   }
 
-  const kv = await kvPromise;
+  await kvInitPromise;
 
   console.log("request build cache:", BUILD_ID, chunkName);
+
+  return inMemoryCache[chunkName];
+}
+
+/** initialize KV */
+async function initKv() {
+  console.time("init kv");
+
+  const kv = await Deno.openKv(DEBUG ? "./cache.sqlite" : undefined);
+  const buildIdInKv = (await kv.get<string>([KV_PREFIX, "buildId"])).value;
+  if (buildIdInKv === BUILD_ID) {
+    await loadAllCache(kv);
+    console.timeEnd("init kv");
+    return kv;
+  }
+  if (buildIdInKv) {
+    // clean cache
+    const prefix = [KV_PREFIX];
+    // TODO: delete in parallel
+    const kvDeletePromise = [];
+    for await (const entry of kv.list<ArrayBuffer>({ prefix })) {
+      kvDeletePromise.push(kv.delete(entry.key));
+    }
+    await Promise.all(kvDeletePromise);
+  }
+  await kv.set([KV_PREFIX, "buildId"], BUILD_ID);
+  console.timeEnd("init kv");
+  return kv;
+}
+
+async function loadAllCache(kv: Deno.Kv) {
   // get all cache data from KV
 
   // get contents data from KV
@@ -126,27 +157,6 @@ async function getCache(chunkName: string) {
       headers: headersData[chunkName],
     };
   }
-
-  return inMemoryCache[chunkName];
-}
-
-/** initialize KV */
-async function initKv() {
-  const kv = await Deno.openKv(DEBUG ? "./cache.sqlite" : undefined);
-  const buildIdInKv = (await kv.get<string>([KV_PREFIX, "buildId"])).value;
-  if (buildIdInKv === BUILD_ID) {
-    return kv;
-  }
-  if (buildIdInKv) {
-    // clean cache
-    const prefix = [KV_PREFIX];
-    for await (const entry of kv.list<ArrayBuffer>({ prefix })) {
-      // TODO: convert to parallel
-      await kv.delete(entry.key);
-    }
-  }
-  await kv.set([KV_PREFIX, "buildId"], BUILD_ID);
-  return kv;
 }
 
 /** split the {buffer} so that the length fits within {maxArrayBufferLength} */
