@@ -45,8 +45,9 @@ export const handler: MiddlewareHandler[] = [
 // Handling Kv Cache
 
 // key                                                        | value
-// ["__fresh_cache__", "headers", BUILD_ID, chunkName]        | { key: value, ... }
-// ["__fresh_cache__", "buildOutput", BUILD_ID, chunkName, i] | ArrayBuffer {}
+// ["__fresh_cache__", "buildId"]                             | BUILD_ID
+// ["__fresh_cache__", "headers", BUILD_ID, chunkName]        | { key: value, ... } // headers data
+// ["__fresh_cache__", "buildOutput", BUILD_ID, chunkName, i] | ArrayBuffer {} // split content
 
 const maxArrayBufferLength = 60000; // less than 65536
 const KV_PREFIX = "__fresh_cache__";
@@ -68,7 +69,7 @@ async function setCache(
   const kv = await kvPromise;
   const buffers = splitArrayBuffer(content, maxArrayBufferLength);
 
-  console.log("set build cache:", BUILD_ID, chunkName);
+  console.log("set build cache:", BUILD_ID, chunkName, buffers);
 
   // add headers data and contents to KV
   while (true) {
@@ -129,6 +130,7 @@ async function getCache(chunkName: string) {
   return inMemoryCache[chunkName];
 }
 
+/** initialize KV */
 async function initKv() {
   const kv = await Deno.openKv(DEBUG ? "./cache.sqlite" : undefined);
   const buildIdInKv = (await kv.get<string>([KV_PREFIX, "buildId"])).value;
@@ -149,6 +151,9 @@ async function initKv() {
 
 /** split the {buffer} so that the length fits within {maxArrayBufferLength} */
 function splitArrayBuffer(buffer: ArrayBuffer, maxArrayBufferLength: number) {
+  if (buffer.byteLength === 0) {
+    return [buffer];
+  }
   const buffers = [];
   for (let i = 0; i < buffer.byteLength; i += maxArrayBufferLength) {
     buffers.push(buffer.slice(i, i + maxArrayBufferLength));
