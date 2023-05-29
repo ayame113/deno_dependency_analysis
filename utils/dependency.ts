@@ -11,7 +11,9 @@ interface DepsInfo {
   timestamp: number;
 }
 
-const kvPromise = Deno.openKv("./tmp.sqlite");
+const kvPromise = Deno.openKv(
+  Deno.env.get("DENO_DEPLOYMENT_ID") ? undefined : "./tmp.sqlite",
+);
 
 interface LoadOptions {
   readonly reload?: boolean;
