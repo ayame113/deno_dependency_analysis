@@ -4,7 +4,9 @@ import { fetcher } from "./fetch.ts";
 import { type ModuleDependency, parse } from "./parser.ts";
 import type { ModulesInfo } from "./types.d.ts";
 
-export async function getVersionInfo(modules: string[]): Promise<ModulesInfo> {
+export async function getVersionInfo(
+  modules: string[],
+): Promise<ModulesInfo["versions"]> {
   return Object.fromEntries(
     await Promise.all(modules.map(async (module) => {
       const moduleInfo = parse(module);

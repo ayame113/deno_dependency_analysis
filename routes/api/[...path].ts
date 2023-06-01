@@ -70,7 +70,6 @@ const route = app
           versions: await getVersionInfo(modules),
           timestamp: value.timestamp,
         },
-        reason,
       });
     },
   );
