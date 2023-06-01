@@ -1,16 +1,13 @@
 import { init, parse } from "https://esm.sh/es-module-lexer@1.2.1";
+import { fetcher, RateLimitError } from "./fetch.ts";
+import { SUPPORTED_DOMAIN_LIST } from "./const.ts";
+import type { DepsInfo, Result } from "./types.d.ts";
 
 // key                                  | value
 // ["cache", "all_deps", url]           | { [url]: [deps1, deps2, deps3, ...] }
 // ["cache", "date", year, month, date] | Set { url1, url2, url3, ... }
 
-interface DepsInfo {
-  /** 依存関係ツリー */
-  deps: Record<string, string[]>;
-  /** データ取得時刻 */
-  timestamp: number;
-}
-
+// avoid tla
 const kvPromise = Deno.openKv(
   Deno.env.get("DENO_DEPLOYMENT_ID") ? undefined : "./tmp.sqlite",
 );
@@ -19,29 +16,44 @@ interface LoadOptions {
   readonly reload?: boolean;
 }
 
+/** get all dependency tree */
 export async function getAllDeps(
   url: string,
   { reload = false }: LoadOptions = {},
-): Promise<DepsInfo> {
+): Promise<Result<DepsInfo>> {
+  const { hostname } = new URL(url);
+  if (SUPPORTED_DOMAIN_LIST.every((e) => !hostname.endsWith(e))) {
+    return { success: false, reason: `unsupported domain: ${hostname}` };
+  }
   if (reload) {
     await deleteCache(url);
   } else {
     const cache = await getDepsFromCache(url);
     if (cache) {
-      return cache;
+      return { success: true, value: cache };
     }
   }
-  const deps = await getDepsFromSource(url, { reload });
-  saveDepsToCache(url, deps);
-  return deps;
+  try {
+    const deps = await getDepsFromSource(url, { reload });
+    saveDepsToCache(url, deps);
+    return { success: true, value: deps };
+  } catch (error) {
+    if (error instanceof RateLimitError) {
+      return { success: false, reason: `rate limit exceeded.`, status: 429 };
+    } else {
+      throw error;
+    }
+  }
 }
 
+/** load dependency data from cache. */
 async function getDepsFromCache(url: string) {
   const kv = await kvPromise;
   const res = await kv.get<DepsInfo>(["cache", "all_deps", url]);
   return res.value;
 }
 
+/** load dependency data from network. */
 async function getDepsFromSource(url: string, { reload }: LoadOptions) {
   const urls = new Set([url]);
   const res: Record<string, string[]> = {};
@@ -65,11 +77,13 @@ async function getDepsFromSource(url: string, { reload }: LoadOptions) {
   return { deps: res, timestamp };
 }
 
+/** delete dependency data from cache. */
 async function deleteCache(url: string) {
   const kv = await kvPromise;
   await kv.delete(["cache", "all_deps", url]);
 }
 
+/** save dependency data to cache. */
 async function saveDepsToCache(url: string, deps: DepsInfo) {
   const kv = await kvPromise;
   const date = new Date(deps.timestamp);
@@ -92,9 +106,10 @@ async function saveDepsToCache(url: string, deps: DepsInfo) {
   }
 }
 
+/** load and parse file */
 async function fetchAndParse(url: string): Promise<string[]> {
   new URL(url); // throw if not url
-  const res = await fetch(url);
+  const res = await fetcher.fetch(url);
   const text = await res.text();
   const imports = await getAllImports(text, url);
   return imports
@@ -108,6 +123,7 @@ async function fetchAndParse(url: string): Promise<string[]> {
     .filter(<T>(v: T): v is NonNullable<T> => !!v);
 }
 
+/** parse and detect import statement */
 async function getAllImports(code: string, moduleName: string) {
   await init;
   try {

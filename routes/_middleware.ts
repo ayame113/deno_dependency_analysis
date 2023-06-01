@@ -125,7 +125,7 @@ class CacheData {
       return this.#inMemoryCache[chunkName];
     }
 
-    console.log("request build cache:", BUILD_ID, chunkName);
+    // console.log("request build cache:", BUILD_ID, chunkName);
 
     return this.#inMemoryCache[chunkName];
   }
@@ -141,7 +141,7 @@ class CacheData {
     const kv = await this.#kvInitPromise;
     const buffers = splitArrayBuffer(content, maxArrayBufferLength);
 
-    console.log("set build cache:", BUILD_ID, chunkName, buffers);
+    // console.log("set build cache:", BUILD_ID, chunkName, buffers);
 
     // add headers data and contents to KV
     while (true) {
