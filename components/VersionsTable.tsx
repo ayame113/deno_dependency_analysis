@@ -9,9 +9,9 @@ interface VersionTableProps {
 
 export function VersionTable(props: VersionTableProps) {
   return (
-    <div class="overflow-x-scroll">
+    <div class="overflow-scroll h-[80vh]">
       <table class="text-center leading-tight whitespace-nowrap">
-        <tr class="border-b-2 border-neutral-300 [&>*]:(px-1 sticky top-100 left-0 z-10)">
+        <tr class="text-white border-b-2 border-neutral-300 [&>*]:(bg-blue-800 p-1 sticky top-0 z-10 border-x-2 border-neutral-100)">
           <th>src</th>
           <th>org/pkg</th>
           <th>version</th>
