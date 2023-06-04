@@ -1,27 +1,35 @@
 import { unreachable } from "https://deno.land/std@0.190.0/testing/asserts.ts";
-import { difference } from "https://deno.land/std@0.190.0/semver/mod.ts";
+import {
+  difference,
+  ReleaseType,
+} from "https://deno.land/std@0.190.0/semver/mod.ts";
 import { fetcher } from "./fetch.ts";
 import { type ModuleDependency, parse } from "./parser.ts";
-import type { ModulesInfo } from "./types.d.ts";
+import type { VersionInfo } from "./types.d.ts";
 
 export async function getVersionInfo(
   modules: string[],
-): Promise<ModulesInfo["versions"]> {
+): Promise<Record<string, { [key in keyof VersionInfo]: VersionInfo[key] }>> {
   return Object.fromEntries(
     await Promise.all(modules.map(async (module) => {
       const moduleInfo = parse(module);
       const latest = await getLatestVersion(moduleInfo);
-      return [module, {
+      const versionInfo: VersionInfo = {
         src: moduleInfo.src,
         org: moduleInfo.org,
         pkg: moduleInfo.pkg,
         version: moduleInfo.ver,
         mod: moduleInfo.mod,
         latest,
-        differenceFromLatest: moduleInfo.ver && latest
+        differenceFromLatest: moduleInfo.ver === latest
+          ? "latest"
+          : !moduleInfo.ver
+          ? "not pinned"
+          : moduleInfo.ver && latest
           ? difference(moduleInfo.ver, latest)
           : undefined,
-      }];
+      };
+      return [module, versionInfo];
     })),
   );
 }

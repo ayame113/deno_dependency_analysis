@@ -9,15 +9,22 @@ export interface DepsInfo {
 }
 
 export interface ModulesInfo extends DepsInfo {
-  versions: {
-    src: DependencySources;
-    org: string | undefined;
-    pkg: string;
-    version: string | undefined;
-    mod: string | undefined;
-    latest: string | undefined;
-    differenceFromLatest: ReleaseType | null | undefined;
-  };
+  versions: Record<string, VersionInfo>;
+}
+
+export interface VersionInfo {
+  src: DependencySources;
+  org: string | undefined;
+  pkg: string;
+  version: string | undefined;
+  mod: string | undefined;
+  latest: string | undefined;
+  differenceFromLatest:
+    | ReleaseType
+    | "latest"
+    | "not pinned"
+    | null
+    | undefined;
 }
 
 export type Result<T> = SuccessResult<T> | ErrorResult;

@@ -59,21 +59,28 @@ const route = app
         reload: reload === undefined ? false : true,
       });
       if (!success) {
-        return c.jsonT({ success, value, reason }, status ?? 500);
+        return c.jsonT<Result<ModulesInfo>>(
+          { success, value, reason },
+          status ?? 500,
+        );
       }
       const modules = Object.keys(value.deps);
 
-      return c.jsonT<Result<ModulesInfo>>({
+      const res: InterfaceToType<Result<ModulesInfo>> = {
         success,
         value: {
           deps: value.deps,
           versions: await getVersionInfo(modules),
           timestamp: value.timestamp,
         },
-      });
+      };
+      return c.jsonT<InterfaceToType<Result<ModulesInfo>>>(res);
     },
   );
 
 export const handler: Handler = (req) => app.fetch(req);
 
 export type AppType = typeof route;
+
+type InterfaceToType<T> = T extends Function ? T
+  : { [K in keyof T]: InterfaceToType<T[K]> };
