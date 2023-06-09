@@ -1,8 +1,5 @@
 import { unreachable } from "https://deno.land/std@0.190.0/testing/asserts.ts";
-import {
-  difference,
-  ReleaseType,
-} from "https://deno.land/std@0.190.0/semver/mod.ts";
+import { difference } from "https://deno.land/std@0.190.0/semver/mod.ts";
 import { fetcher } from "./fetch.ts";
 import { type ModuleDependency, parse } from "./parser.ts";
 import type { VersionInfo } from "./types.d.ts";

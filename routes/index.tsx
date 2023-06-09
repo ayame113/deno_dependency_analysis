@@ -1,4 +1,5 @@
 import { Head } from "$fresh/runtime.ts";
+import Search from "../islands/Search.tsx";
 
 export default function Home() {
   return (
@@ -8,7 +9,11 @@ export default function Home() {
       </Head>
       <div>
         <h2>Usage</h2>
-        <div>テキスト</div>
+        <ol class="list-decimal ml-6">
+          <li>input target url below</li>
+          <li>click [search] button</li>
+        </ol>
+        <Search />
       </div>
     </>
   );
