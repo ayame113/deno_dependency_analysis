@@ -141,6 +141,10 @@ class CacheData {
     const kv = await this.#kvInitPromise;
     const buffers = splitArrayBuffer(content, maxArrayBufferLength);
 
+    if (buffers.length > 9) {
+      return; // skip caching
+    }
+
     // console.log("set build cache:", BUILD_ID, chunkName, buffers);
 
     // add headers data and contents to KV
