@@ -54,6 +54,10 @@ export default function DependencyInfo({ url }: DependencyInfoProps) {
 
   return (
     <div>
+      GitHub上の利用者数: ○○○○○○件<br />
+      GitHub スター数: ○○○○○○件<br />
+      ダウンロードサイズ: xxxx MB<br />
+      外部依存関係情報:<br />
       <div class="max-w-[20em] h-[20em]">
         <ChartJsChart
           config={{
