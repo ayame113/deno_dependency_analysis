@@ -4,6 +4,7 @@ export class Fetcher {
   constructor({ rateLimit = 300 }: { rateLimit?: number } = {}) {
     this.#defaultRateLimit = rateLimit;
     const timeoutId = setTimeout(() => {
+      console.log("reset rate limit");
       this.#rateLimits = {};
     }, 60 * 1000);
     Deno.unrefTimer(timeoutId);
