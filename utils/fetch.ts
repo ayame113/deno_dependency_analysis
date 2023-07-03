@@ -3,7 +3,7 @@ export class Fetcher {
   #rateLimits: Record<string, number | undefined> = {};
   constructor({ rateLimit = 300 }: { rateLimit?: number } = {}) {
     this.#defaultRateLimit = rateLimit;
-    const timeoutId = setTimeout(() => {
+    const timeoutId = setInterval(() => {
       console.log("reset rate limit");
       this.#rateLimits = {};
     }, 60 * 1000);
