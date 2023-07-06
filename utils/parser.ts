@@ -73,17 +73,18 @@ const patterns = {
   ],
   /** Packages that are hosted on esm.sh. */
   "esm.sh": [
-    new URLPattern({
-      protocol: "http{s}?",
-      hostname: "{cdn.}?esm.sh",
-      pathname: "/:org(@[^/]+)?/:pkg{@:ver}?/:mod*",
-      search: "*",
-    }),
+    // こちらの方に優先してマッチするようにする
     // https://esm.sh/v92/preact@10.10.0/src/index.d.ts
     new URLPattern({
       protocol: "http{s}?",
       hostname: "{cdn.}?esm.sh",
       pathname: "/:regver(stable|v[0-9]+)/:org(@[^/]+)?/:pkg{@:ver}?/:mod*",
+      search: "*",
+    }),
+    new URLPattern({
+      protocol: "http{s}?",
+      hostname: "{cdn.}?esm.sh",
+      pathname: "/:org(@[^/]+)?/:pkg{@:ver}?/:mod*",
       search: "*",
     }),
   ],
