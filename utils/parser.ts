@@ -141,6 +141,11 @@ const patterns = {
   ],
   /** Packages that are hosted on skypack.dev */
   "skypack.dev": [
+    // このパターンを優先してキャプチャするようにする
+    // https://cdn.skypack.dev/-/@firebase/firestore@v3.4.3-A3UEhS17OZ2Vgra7HCZF/dist=es2019,mode=types/dist/index.d.ts
+    new URLPattern(
+      "https://cdn.skypack.dev/-/:org(@[^/]+)?/:pkg@:ver([^-]+):hash/:mod*",
+    ),
     new URLPattern({
       protocol: "https",
       hostname: "cdn.skypack.dev",
@@ -155,10 +160,6 @@ const patterns = {
       pathname: "/pin/:org(@[^/]+)?/:pkg{@:ver([^-/]+)}:hash/:mod*",
       search: "*",
     }),
-    // https://cdn.skypack.dev/-/@firebase/firestore@v3.4.3-A3UEhS17OZ2Vgra7HCZF/dist=es2019,mode=types/dist/index.d.ts
-    new URLPattern(
-      "https://cdn.skypack.dev/-/:org(@[^/]+)?/:pkg@:ver([^-]+):hash/:mod*",
-    ),
     // https://cdn.pika.dev/class-transformer@^0.2.3
     new URLPattern({
       protocol: "https",
