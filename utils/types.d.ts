@@ -23,6 +23,7 @@ export interface VersionInfo {
     | ReleaseType
     | "latest"
     | "not pinned"
+    | "unknown"
     | null
     | undefined;
 }

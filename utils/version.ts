@@ -1,5 +1,8 @@
 import { unreachable } from "https://deno.land/std@0.190.0/testing/asserts.ts";
-import { difference } from "https://deno.land/std@0.190.0/semver/mod.ts";
+import {
+  difference,
+  parse as parseSemver,
+} from "https://deno.land/std@0.193.0/semver/mod.ts";
 import { fetcher } from "./fetch.ts";
 import { type ModuleDependency, parse } from "./parser.ts";
 import type { VersionInfo } from "./types.d.ts";
@@ -23,7 +26,7 @@ export async function getVersionInfo(
           : !moduleInfo.ver
           ? "not pinned"
           : moduleInfo.ver && latest
-          ? difference(moduleInfo.ver, latest)
+          ? semverDiffernce(moduleInfo.ver, latest)
           : undefined,
       };
       return [module, versionInfo];
@@ -100,3 +103,12 @@ const getLatestVersion = (() => {
     }
   };
 })();
+
+function semverDiffernce(a: string, b: string) {
+  try {
+    return difference(parseSemver(a), parseSemver(b));
+  } catch (e) {
+    console.warn(e);
+    return "unknown";
+  }
+}
