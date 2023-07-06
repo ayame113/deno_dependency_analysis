@@ -115,7 +115,13 @@ async function fetchAndParse(url: string): Promise<string[]> {
   return imports
     .map((specifier) => {
       try {
-        return new URL(specifier, url).toString();
+        const urlWithSpecifier = new URL(specifier, url);
+        if (
+          urlWithSpecifier.protocol === "http:" ||
+          urlWithSpecifier.protocol === "https:"
+        ) {
+          return urlWithSpecifier.toString();
+        }
       } catch (error) {
         console.error("failed to parse url:", specifier, "in", url, error);
       }
