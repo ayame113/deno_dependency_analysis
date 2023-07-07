@@ -10,6 +10,21 @@ export interface DepsInfo {
 
 export interface ModulesInfo extends DepsInfo {
   versions: Record<string, VersionInfo>;
+  module_details?: {
+    archived: boolean;
+    description: string | null;
+    forks_count: number;
+    full_name: string;
+    homepage: string | null;
+    html_url: string;
+    language: string | null;
+    open_issues_count: number;
+    pushed_at: string;
+    stargazers_count: number;
+    subscribers_count: number;
+    topics?: string[] | undefined;
+  };
+  search_count: number;
 }
 
 export interface VersionInfo {

@@ -5,6 +5,10 @@ import { validator } from "$hono/validator/index.ts";
 import { getAllDeps } from "../../utils/dependency.ts";
 import { getVersionInfo } from "../../utils/version.ts";
 import type { DepsInfo, ModulesInfo, Result } from "../../utils/types.d.ts";
+import {
+  getModuleDetails,
+  getSearchCount,
+} from "../../utils/module_details.ts";
 
 const app = new Hono().basePath("/api");
 
@@ -66,12 +70,20 @@ const route = app
       }
       const modules = Object.keys(value.deps);
 
+      const [versions, module_details, search_count] = await Promise.all([
+        getVersionInfo(modules),
+        getModuleDetails(url),
+        getSearchCount(url),
+      ]);
+
       const res: InterfaceToType<Result<ModulesInfo>> = {
         success,
         value: {
           deps: value.deps,
-          versions: await getVersionInfo(modules),
+          versions,
           timestamp: value.timestamp,
+          module_details,
+          search_count,
         },
       };
       return c.jsonT<InterfaceToType<Result<ModulesInfo>>>(res);

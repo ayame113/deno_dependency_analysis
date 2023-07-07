@@ -54,8 +54,33 @@ export default function DependencyInfo({ url }: DependencyInfoProps) {
 
   return (
     <div>
-      GitHub上の利用者数: ○○○○○○件<br />
-      GitHub スター数: ○○○○○○件<br />
+      GitHub上の利用者数: {data.value.search_count}件<br />
+      リポジトリ名: {data.value.module_details?.full_name ?? "-"}
+      <br />
+      ホームページ: {data.value.module_details?.homepage ?? "-"}
+      <br />
+      リポジトリ: {data.value.module_details?.html_url ?? "-"}
+      <br />
+      アーカイブされているかどうか:
+      {data.value.module_details?.archived ? "はい" : "いいえ"}
+      <br />
+      説明: {data.value.module_details?.description ?? "-"}
+      <br />
+      最終更新日: {data.value.module_details?.pushed_at ?? "-"}
+      <br />
+      GitHub スター数:
+      {data.value.module_details?.stargazers_count ?? "-"}
+      <br />
+      開いているissue数: {data.value.module_details?.open_issues_count ?? "-"}
+      <br />
+      フォーク数: {data.value.module_details?.forks_count ?? "-"}
+      <br />
+      Watchしている人の数: {data.value.module_details?.subscribers_count ?? "-"}
+      <br />
+      関連トピック: {data.value.module_details?.topics?.join(", ") ?? "-"}
+      <br />
+      使用言語: {data.value.module_details?.language ?? "-"}
+      <br />
       ダウンロードサイズ: xxxx MB<br />
       外部依存関係情報:<br />
       <div class="max-w-[20em] h-[20em]">
