@@ -74,17 +74,11 @@ const route = app.use("*", logger())
       }
       const modules = Object.keys(value.deps);
 
-      let versions, module_details, search_count;
-      try {
-        [versions, module_details, search_count] = await Promise.all([
-          getVersionInfo(modules),
-          getModuleDetails(url),
-          getSearchCount(url),
-        ]);
-      } catch (e) {
-        console.error(e);
-        throw e;
-      }
+      const [versions, module_details, search_count] = await Promise.all([
+        getVersionInfo(modules),
+        getModuleDetails(url),
+        getSearchCount(url),
+      ]);
 
       const res: Result<ModulesInfo> = {
         success,
