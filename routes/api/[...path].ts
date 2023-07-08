@@ -1,6 +1,7 @@
 import { Handler } from "$fresh/server.ts";
 import { Hono } from "$hono/mod.ts";
 import { validator } from "$hono/validator/index.ts";
+import { logger } from "$hono/middleware.ts";
 
 import { getAllDeps } from "../../utils/dependency.ts";
 import { getVersionInfo } from "../../utils/version.ts";
@@ -12,13 +13,13 @@ import {
 
 const app = new Hono().basePath("/api");
 
-const route = app
+const route = app.use("*", logger())
   .get("/status", (c) => c.jsonT({ status: "ok" }))
   .get(
     "/dependency_tree",
     validator("query", (value, c) => {
       if (!value.url) {
-        return c.text("query parameter 'url' is required.", 500);
+        return c.text("query parameter 'url' is required.", 400);
       }
       return {
         url: value.url,
@@ -34,7 +35,10 @@ const route = app
         reload: reload === undefined ? false : true,
       });
       if (!success) {
-        return c.jsonT({ success, value, reason }, status ?? 500);
+        return c.jsonT<Result<DepsInfo>>(
+          { success, value, reason },
+          status ?? 500,
+        );
       }
       return c.jsonT<Result<DepsInfo>>({
         success,
@@ -47,7 +51,7 @@ const route = app
     "/dependency_info",
     validator("query", (value, c) => {
       if (!value.url) {
-        return c.text("query parameter 'url' is required.", 500);
+        return c.text("query parameter 'url' is required.", 400);
       }
       return {
         url: value.url,
@@ -76,7 +80,7 @@ const route = app
         getSearchCount(url),
       ]);
 
-      const res: InterfaceToType<Result<ModulesInfo>> = {
+      const res: Result<ModulesInfo> = {
         success,
         value: {
           deps: value.deps,
@@ -86,13 +90,10 @@ const route = app
           search_count,
         },
       };
-      return c.jsonT<InterfaceToType<Result<ModulesInfo>>>(res);
+      return c.jsonT<Result<ModulesInfo>>(res);
     },
   );
 
 export const handler: Handler = (req) => app.fetch(req);
 
 export type AppType = typeof route;
-
-type InterfaceToType<T> = T extends Function ? T
-  : { [K in keyof T]: InterfaceToType<T[K]> };
