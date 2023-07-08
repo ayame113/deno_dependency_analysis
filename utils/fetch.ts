@@ -1,12 +1,13 @@
 export class Fetcher {
   readonly #defaultRateLimit;
   #rateLimits: Record<string, number | undefined> = {};
-  constructor({ rateLimit = 300 }: { rateLimit?: number } = {}) {
+  constructor({ rateLimit = 600 }: { rateLimit?: number } = {}) {
+    // by default, 600 request limit per 2 min.
     this.#defaultRateLimit = rateLimit;
     const timeoutId = setInterval(() => {
       console.log("reset rate limit");
       this.#rateLimits = {};
-    }, 60 * 1000);
+    }, 2 * 60 * 1000);
     Deno.unrefTimer(timeoutId);
   }
   async fetch(input: string | URL, init?: RequestInit) {

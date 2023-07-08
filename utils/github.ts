@@ -4,16 +4,9 @@ import { deadline } from "https://deno.land/std@0.193.0/async/deadline.ts";
 
 import { App } from "https://esm.sh/octokit@2.1.0";
 
+// deno deploy can't set env var with line break
 const GITHUB_APP_PRIVATE_KEY = Deno.env.get("GITHUB_APP_PRIVATE_KEY")!
   .replaceAll("\\n", "\n");
-
-console.log({
-  appId: Deno.env.get("GITHUB_APP_ID")!,
-  privateKey: GITHUB_APP_PRIVATE_KEY,
-  clientId: Deno.env.get("GITHUB_APP_CLIENT_ID")!,
-  clientSecret: Deno.env.get("GITHUB_APP_CLIENT_SECRET")!,
-  installId: Deno.env.get("GITHUB_APP_INSTALLATION_ID")!,
-});
 
 const app = new App({
   appId: Deno.env.get("GITHUB_APP_ID")!,
