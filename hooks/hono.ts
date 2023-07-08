@@ -1,16 +1,19 @@
 import { useEffect, useState } from "preact/hooks";
 
 import { hc } from "$hono/mod.ts";
+import { ClientResponse, InferResponseType } from "$hono/client/types.ts";
 import type { AppType } from "../routes/api/[...path].ts";
 
 export const client = hc<AppType>("/");
 
-// deno-lint-ignore no-explicit-any
-export function useHono<F extends (...args: any[]) => Promise<Response>>(
+export function useHono<
+  // deno-lint-ignore no-explicit-any
+  F extends (...args: any[]) => Promise<ClientResponse<any>>,
+>(
   endpoint: F,
   ...args: Parameters<F>
 ) {
-  type Data = Awaited<ReturnType<Awaited<ReturnType<F>>["json"]>>;
+  type Data = InferResponseType<F>;
   const [result, setResult] = useState<
     | { isLoading: true; error?: undefined; data?: undefined }
     | { isLoading: false; error?: undefined; data: Data }
